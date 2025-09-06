@@ -2,8 +2,8 @@ use minifb::{Key, Window, WindowOptions};
 use rand::Rng;
 use std::time::{Duration, Instant};
 
-const WINDOW_WIDTH: usize = 800;
-const WINDOW_HEIGHT: usize = 600;
+const WINDOW_WIDTH: usize = 1280;
+const WINDOW_HEIGHT: usize = 720;
 const GRID_SIZE: usize = 20;
 const GRID_WIDTH: usize = WINDOW_WIDTH / GRID_SIZE;
 const GRID_HEIGHT: usize = WINDOW_HEIGHT / GRID_SIZE;
