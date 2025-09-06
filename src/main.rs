@@ -261,7 +261,7 @@ impl Game {
             refresh_rate: Duration::from_millis(refresh_rate),
         };
 
-        game.food.spawn(&game.snake);
+        game.food.spawn_early_game(&game.snake);
         game
     }
 
@@ -376,7 +376,7 @@ impl Game {
         info!("Restarting game");
         self.snake = Snake::new();
         self.food = Food::new();
-        self.food.spawn(&self.snake);
+        self.food.spawn_early_game(&self.snake);
         self.score = 0;
         self.game_over = false;
         self.last_update = Instant::now();
