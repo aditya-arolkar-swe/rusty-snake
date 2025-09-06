@@ -6,8 +6,8 @@ use rand::Rng;
 use std::fs::{self, DirEntry, OpenOptions};
 use std::time::{Duration, Instant};
 
-const WINDOW_WIDTH: usize = 800;
-const WINDOW_HEIGHT: usize = 600;
+const WINDOW_WIDTH: usize = 1280;
+const WINDOW_HEIGHT: usize = 720;
 const GRID_SIZE: usize = 20;
 const GRID_WIDTH: usize = WINDOW_WIDTH / GRID_SIZE;
 const GRID_HEIGHT: usize = WINDOW_HEIGHT / GRID_SIZE;
@@ -170,7 +170,7 @@ impl Food {
         }
     }
 
-    fn spawn(&mut self, snake: &Snake) {
+    fn spawn_early_game(&mut self, snake: &Snake) {
         debug!(
             "Spawning new food, avoiding snake body of length: {}",
             snake.body.len()
@@ -209,6 +209,29 @@ impl Food {
                 );
                 break;
             }
+        }
+    }
+    fn spawn_late_game(&mut self, snake: &Snake) {
+        let mut allowed_spawns: Vec<Position> = Vec::with_capacity(GRID_WIDTH * GRID_HEIGHT);
+        for x in 1..GRID_WIDTH - 1 {
+            for y in 1..GRID_HEIGHT - 1 {
+                let mut valid = true;
+                for segment in &snake.body {
+                    if segment.x != x && segment.y == y {
+                        valid = false;
+                        break;
+                    }
+                }
+
+                if valid {
+                    allowed_spawns.push(Position { x: x, y: y });
+                }
+            }
+        }
+
+        match allowed_spawns.choose(&mut rand::rng()) {
+            Some(i) => self.position = *i,
+            None => println!("Game Won!"),
         }
     }
 }
@@ -263,7 +286,11 @@ impl Game {
                 );
                 self.snake.grow();
                 self.score += 10;
-                self.food.spawn(&self.snake);
+                if self.snake.body.len() > GRID_WIDTH * GRID_HEIGHT / 2 {
+                    self.food.spawn_late_game(&self.snake);
+                } else {
+                    self.food.spawn_early_game(&self.snake);
+                }
             }
 
             // Check for collisions
