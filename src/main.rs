@@ -429,4 +429,7 @@ fn main() {
     }
     
     info!("Game loop ended");
+    println!("\n🎮 Game session ended!");
+    println!("📁 Game logs saved to: {}", log_path);
+    println!("💡 You can view the logs with: cat \"{}\"", log_path);
 }
