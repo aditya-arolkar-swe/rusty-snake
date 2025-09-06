@@ -1,8 +1,8 @@
+use clap::Parser;
 use minifb::{Key, Window, WindowOptions};
 use rand::seq::IndexedRandom;
 use rand::Rng;
 use std::time::{Duration, Instant};
-use clap::Parser;
 
 const WINDOW_WIDTH: usize = 1280;
 const WINDOW_HEIGHT: usize = 720;
@@ -132,7 +132,7 @@ impl Food {
         }
     }
 
-    fn spawn(&mut self, snake: &Snake) {
+    fn spawn_early_game(&mut self, snake: &Snake) {
         let mut rng = rand::rng();
         loop {
             let x = rng.random_range(1..GRID_WIDTH - 1);
@@ -154,7 +154,7 @@ impl Food {
         }
     }
 
-    fn spawn_constant(&mut self, snake: &Snake) {
+    fn spawn_late_game(&mut self, snake: &Snake) {
         let mut allowed_spawns: Vec<Position> = Vec::with_capacity(GRID_WIDTH * GRID_HEIGHT);
         for x in 1..GRID_WIDTH - 1 {
             for y in 1..GRID_HEIGHT - 1 {
@@ -198,7 +198,7 @@ impl Game {
             last_update: Instant::now(),
             refresh_rate: Duration::from_millis(refresh_rate),
         };
-        game.food.spawn(&game.snake);
+        game.food.spawn_early_game(&game.snake);
         game
     }
 
@@ -217,9 +217,9 @@ impl Game {
                 self.snake.grow();
                 self.score += 10;
                 if self.snake.body.len() > GRID_WIDTH * GRID_HEIGHT / 2 {
-                    self.food.spawn_constant(&self.snake);
+                    self.food.spawn_late_game(&self.snake);
                 } else {
-                    self.food.spawn(&self.snake);
+                    self.food.spawn_early_game(&self.snake);
                 }
             }
 
@@ -299,7 +299,7 @@ impl Game {
     fn restart(&mut self) {
         self.snake = Snake::new();
         self.food = Food::new();
-        self.food.spawn(&self.snake);
+        self.food.spawn_early_game(&self.snake);
         self.score = 0;
         self.game_over = false;
         self.last_update = Instant::now();
@@ -308,10 +308,13 @@ impl Game {
 
 fn main() {
     let cli = Cli::parse();
-    
-    println!("Starting Rusty Snake with refresh rate: {}ms", cli.refresh_rate);
+
+    println!(
+        "Starting Rusty Snake with refresh rate: {}ms",
+        cli.refresh_rate
+    );
     println!("Use arrow keys to move, R to restart, ESC to exit");
-    
+
     let mut window = Window::new(
         &format!("Rusty Snake - Refresh Rate: {}ms", cli.refresh_rate),
         WINDOW_WIDTH,
