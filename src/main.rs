@@ -146,8 +146,8 @@ impl Food {
         let mut attempts = 0;
         
         loop {
-            let x = rng.gen_range(1..GRID_WIDTH - 1);
-            let y = rng.gen_range(1..GRID_HEIGHT - 1);
+            let x = rng.random_range(1..GRID_WIDTH - 1);
+            let y = rng.random_range(1..GRID_HEIGHT - 1);
             attempts += 1;
             
             debug!("Food spawn attempt {}: trying position ({}, {})", attempts, x, y);
