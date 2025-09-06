@@ -2,12 +2,23 @@ use minifb::{Key, Window, WindowOptions};
 use rand::seq::IndexedRandom;
 use rand::Rng;
 use std::time::{Duration, Instant};
+use clap::Parser;
 
-const WINDOW_WIDTH: usize = 800;
-const WINDOW_HEIGHT: usize = 600;
+const WINDOW_WIDTH: usize = 1280;
+const WINDOW_HEIGHT: usize = 720;
 const GRID_SIZE: usize = 20;
 const GRID_WIDTH: usize = WINDOW_WIDTH / GRID_SIZE;
 const GRID_HEIGHT: usize = WINDOW_HEIGHT / GRID_SIZE;
+
+#[derive(Parser)]
+#[command(name = "rusty-snake")]
+#[command(about = "A classic Snake game implementation in Rust")]
+#[command(version)]
+struct Cli {
+    /// Refresh rate in milliseconds (lower = faster game)
+    #[arg(long, default_value = "150")]
+    refresh_rate: u64,
+}
 
 #[derive(Clone, Copy, PartialEq)]
 struct Position {
@@ -174,16 +185,18 @@ struct Game {
     score: u32,
     game_over: bool,
     last_update: Instant,
+    refresh_rate: Duration,
 }
 
 impl Game {
-    fn new() -> Self {
+    fn new(refresh_rate: u64) -> Self {
         let mut game = Game {
             snake: Snake::new(),
             food: Food::new(),
             score: 0,
             game_over: false,
             last_update: Instant::now(),
+            refresh_rate: Duration::from_millis(refresh_rate),
         };
         game.food.spawn(&game.snake);
         game
@@ -194,7 +207,7 @@ impl Game {
             return;
         }
 
-        if self.last_update.elapsed() >= Duration::from_millis(150) {
+        if self.last_update.elapsed() >= self.refresh_rate {
             self.snake.update();
             self.last_update = Instant::now();
 
@@ -294,8 +307,13 @@ impl Game {
 }
 
 fn main() {
+    let cli = Cli::parse();
+    
+    println!("Starting Rusty Snake with refresh rate: {}ms", cli.refresh_rate);
+    println!("Use arrow keys to move, R to restart, ESC to exit");
+    
     let mut window = Window::new(
-        "Rusty Snake - Use arrow keys to move, R to restart, ESC to exit",
+        &format!("Rusty Snake - Refresh Rate: {}ms", cli.refresh_rate),
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         WindowOptions::default(),
@@ -304,7 +322,7 @@ fn main() {
         panic!("Unable to create window: {}", e);
     });
 
-    let mut game = Game::new();
+    let mut game = Game::new(cli.refresh_rate);
     let mut buffer: Vec<u32> = vec![0; WINDOW_WIDTH * WINDOW_HEIGHT];
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
