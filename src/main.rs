@@ -142,7 +142,7 @@ impl Food {
 
     fn spawn(&mut self, snake: &Snake) {
         debug!("Spawning new food, avoiding snake body of length: {}", snake.body.len());
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut attempts = 0;
         
         loop {
