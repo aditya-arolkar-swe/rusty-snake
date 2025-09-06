@@ -19,7 +19,7 @@ struct Cli {
     refresh_rate: u64,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct Position {
     x: usize,
     y: usize,
@@ -131,39 +131,44 @@ impl Food {
         }
     }
 
-    fn spawn(&mut self, snake: &Snake) {
-        let mut allowed_spawns: Vec<Position> = Vec::with_capacity(GRID_WIDTH * GRID_HEIGHT);
-        for x in 1..GRID_WIDTH - 1 {
-            for y in 1..GRID_HEIGHT - 1 {
-                allowed_spawns.push(Position { x: x, y: y });
+    /// Spawns food at a random position that doesn't overlap with the snake's body.
+    /// Returns true if food was successfully spawned, false if no valid positions remain (game won).
+    fn spawn(&mut self, snake: &Snake) -> bool {
+        let valid_positions = self.get_valid_spawn_positions(snake);
+        
+        match valid_positions.choose(&mut rand::rng()) {
+            Some(&position) => {
+                self.position = position;
+                true
+            }
+            None => {
+                println!("Game Won! No more valid spawn positions.");
+                false
             }
         }
+    }
 
-        let mut indices_to_remove: Vec<usize> =
-            snake.body.iter().map(|p| p.x * GRID_WIDTH + p.y).collect();
-
-        indices_to_remove.sort();
-
-        let mut current_index_in_original_vec = 0;
-        let mut next_removal_index_to_check = 0;
-        allowed_spawns.retain(|_| {
-            let should_keep = if next_removal_index_to_check < indices_to_remove.len()
-                && indices_to_remove[next_removal_index_to_check] == current_index_in_original_vec
-            {
-                // This element's index matches an index to be removed
-                next_removal_index_to_check += 1;
-                false // Do not keep this element
-            } else {
-                true // Keep this element
-            };
-            current_index_in_original_vec += 1;
-            should_keep
-        });
-
-        match allowed_spawns.choose(&mut rand::rng()) {
-            Some(i) => self.position = *i,
-            None => println!("Game Won!"),
+    /// Returns all valid positions where food can spawn (not occupied by snake or walls).
+    fn get_valid_spawn_positions(&self, snake: &Snake) -> Vec<Position> {
+        let mut valid_positions = Vec::new();
+        
+        // Create a set of snake body positions for O(1) lookup
+        let snake_positions: std::collections::HashSet<Position> = 
+            snake.body.iter().copied().collect();
+        
+        // Check each position in the playable area (excluding walls)
+        for x in 1..GRID_WIDTH - 1 {
+            for y in 1..GRID_HEIGHT - 1 {
+                let position = Position { x, y };
+                
+                // Only add positions that aren't occupied by the snake
+                if !snake_positions.contains(&position) {
+                    valid_positions.push(position);
+                }
+            }
         }
+        
+        valid_positions
     }
 }
 
