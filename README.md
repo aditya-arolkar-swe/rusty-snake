@@ -7,9 +7,10 @@ A classic Snake game implementation in Rust using the `minifb` library for graph
 - Classic Snake gameplay
 - Smooth movement with arrow key controls
 - Food spawning and collision detection
-- Score tracking
+- Score tracking with visual display
 - Game over detection with restart functionality
 - Clean, pixelated graphics
+- **Customizable refresh rate via CLI arguments**
 
 ## Controls
 
@@ -33,14 +34,44 @@ A classic Snake game implementation in Rust using the `minifb` library for graph
 - The game ends if the snake hits a wall or itself
 - Press 'R' to restart after game over
 
+## Command Line Options
+
+The game supports customizable refresh rates for different difficulty levels:
+
+```bash
+# Default speed (150ms refresh rate)
+cargo run
+
+# Faster game (50ms refresh rate) - More challenging!
+cargo run -- --refresh-rate 50
+
+# Slower game (300ms refresh rate) - Easier for beginners
+cargo run -- --refresh-rate 300
+
+# Show help
+cargo run -- --help
+
+# Show version
+cargo run -- --version
+```
+
+### Refresh Rate Guide
+
+- **50ms**: Very fast - Expert level
+- **100ms**: Fast - Advanced level  
+- **150ms**: Default - Normal level
+- **200ms**: Slow - Beginner level
+- **300ms**: Very slow - Easy mode
+
 ## Technical Details
 
 - **Language**: Rust
 - **Graphics Library**: minifb
+- **CLI Parsing**: clap
 - **Window Size**: 800x600 pixels
 - **Grid Size**: 20x20 pixel cells
 - **Game Grid**: 40x30 cells
-- **Update Rate**: ~6.67 FPS (150ms per frame)
+- **Default Update Rate**: ~6.67 FPS (150ms per frame)
 
 ## Building and Running
 
@@ -49,17 +80,24 @@ A classic Snake game implementation in Rust using the `minifb` library for graph
 git clone <repository-url>
 cd rusty-snake
 
-# Run the game
+# Run with default settings
 cargo run
+
+# Run with custom refresh rate
+cargo run -- --refresh-rate 100
 
 # Build for release
 cargo build --release
+
+# Run release build
+./target/release/rusty-snake --refresh-rate 75
 ```
 
 ## Dependencies
 
 - `minifb`: For window management and graphics rendering
 - `rand`: For random food placement
+- `clap`: For command-line argument parsing
 
 ## Project Structure
 
@@ -80,5 +118,19 @@ The game is structured with several key components:
 - **Snake**: Manages snake body, movement, and growth
 - **Food**: Handles food placement and collision detection
 - **Game**: Main game state and logic coordination
+- **Cli**: Command-line argument parsing structure
 
-The game loop handles input processing, game state updates, and rendering in sequence, providing smooth gameplay at a consistent frame rate.
+The game loop handles input processing, game state updates, and rendering in sequence, providing smooth gameplay at a configurable frame rate.
+
+## Examples
+
+```bash
+# Play at expert speed
+cargo run -- --refresh-rate 50
+
+# Play at beginner speed  
+cargo run -- --refresh-rate 250
+
+# Get help
+cargo run -- --help
+```

@@ -1,12 +1,23 @@
 use minifb::{Key, Window, WindowOptions};
 use rand::Rng;
 use std::time::{Duration, Instant};
+use clap::Parser;
 
 const WINDOW_WIDTH: usize = 1280;
 const WINDOW_HEIGHT: usize = 720;
 const GRID_SIZE: usize = 20;
 const GRID_WIDTH: usize = WINDOW_WIDTH / GRID_SIZE;
 const GRID_HEIGHT: usize = WINDOW_HEIGHT / GRID_SIZE;
+
+#[derive(Parser)]
+#[command(name = "rusty-snake")]
+#[command(about = "A classic Snake game implementation in Rust")]
+#[command(version)]
+struct Cli {
+    /// Refresh rate in milliseconds (lower = faster game)
+    #[arg(long, default_value = "150")]
+    refresh_rate: u64,
+}
 
 #[derive(Clone, Copy, PartialEq)]
 struct Position {
@@ -134,16 +145,18 @@ struct Game {
     score: u32,
     game_over: bool,
     last_update: Instant,
+    refresh_rate: Duration,
 }
 
 impl Game {
-    fn new() -> Self {
+    fn new(refresh_rate: u64) -> Self {
         let mut game = Game {
             snake: Snake::new(),
             food: Food::new(),
             score: 0,
             game_over: false,
             last_update: Instant::now(),
+            refresh_rate: Duration::from_millis(refresh_rate),
         };
         game.food.spawn(&game.snake);
         game
@@ -154,7 +167,7 @@ impl Game {
             return;
         }
 
-        if self.last_update.elapsed() >= Duration::from_millis(150) {
+        if self.last_update.elapsed() >= self.refresh_rate {
             self.snake.update();
             self.last_update = Instant::now();
 
@@ -192,6 +205,195 @@ impl Game {
         }
         if window.is_key_pressed(Key::Right, minifb::KeyRepeat::No) {
             self.snake.change_direction(Direction::Right);
+        }
+    }
+
+    // Simple function to draw a digit using pixel patterns
+    fn draw_digit(&self, buffer: &mut [u32], digit: u8, start_x: usize, start_y: usize, color: u32) {
+        let digit_patterns = [
+            // 0
+            [
+                "1111",
+                "1001", 
+                "1001",
+                "1001",
+                "1111"
+            ],
+            // 1
+            [
+                " 11 ",
+                "1 1 ",
+                " 1  ",
+                " 1  ",
+                "1111"
+            ],
+            // 2
+            [
+                "1111",
+                "  11",
+                "1111",
+                "11  ",
+                "1111"
+            ],
+            // 3
+            [
+                "1111",
+                "  11",
+                "1111",
+                "  11",
+                "1111"
+            ],
+            // 4
+            [
+                "1  1",
+                "1  1",
+                "1111",
+                "   1",
+                "   1"
+            ],
+            // 5
+            [
+                "1111",
+                "11  ",
+                "1111",
+                "  11",
+                "1111"
+            ],
+            // 6
+            [
+                "1111",
+                "11  ",
+                "1111",
+                "1 11",
+                "1111"
+            ],
+            // 7
+            [
+                "1111",
+                "   1",
+                "  1 ",
+                " 1  ",
+                "1   "
+            ],
+            // 8
+            [
+                "1111",
+                "1 11",
+                "1111",
+                "1 11",
+                "1111"
+            ],
+            // 9
+            [
+                "1111",
+                "1 11",
+                "1111",
+                "  11",
+                "1111"
+            ]
+        ];
+
+        if digit < 10 {
+            let pattern = digit_patterns[digit as usize];
+            for (row, line) in pattern.iter().enumerate() {
+                for (col, ch) in line.chars().enumerate() {
+                    if ch == '1' {
+                        let x = start_x + col * 2;
+                        let y = start_y + row * 2;
+                        if x < WINDOW_WIDTH && y < WINDOW_HEIGHT {
+                            buffer[y * WINDOW_WIDTH + x] = color;
+                            buffer[y * WINDOW_WIDTH + x + 1] = color;
+                            buffer[(y + 1) * WINDOW_WIDTH + x] = color;
+                            buffer[(y + 1) * WINDOW_WIDTH + x + 1] = color;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn draw_score(&self, buffer: &mut [u32]) {
+        let score_str = format!("{}", self.score);
+        let mut x_pos = 10;
+        
+        for ch in score_str.chars() {
+            if let Some(digit) = ch.to_digit(10) {
+                self.draw_digit(buffer, digit as u8, x_pos, 10, 0xFFFFFF); // White
+                x_pos += 12; // Space between digits
+            }
+        }
+        
+        // Draw "SCORE:" label
+        let label = "SCORE:";
+        let mut label_x = 10;
+        for ch in label.chars() {
+            match ch {
+                'S' => {
+                    // Simple S pattern
+                    for y in 0..5 {
+                        for x in 0..4 {
+                            if (y == 0 || y == 2 || y == 4) && x < 4 {
+                                buffer[(10 + y) * WINDOW_WIDTH + (label_x + x)] = 0xFFFFFF;
+                            } else if (y == 1 && x == 0) || (y == 3 && x == 3) {
+                                buffer[(10 + y) * WINDOW_WIDTH + (label_x + x)] = 0xFFFFFF;
+                            }
+                        }
+                    }
+                },
+                'C' => {
+                    // Simple C pattern
+                    for y in 0..5 {
+                        for x in 0..4 {
+                            if (y == 0 || y == 4) && x > 0 {
+                                buffer[(10 + y) * WINDOW_WIDTH + (label_x + x)] = 0xFFFFFF;
+                            } else if x == 0 && y > 0 && y < 4 {
+                                buffer[(10 + y) * WINDOW_WIDTH + (label_x + x)] = 0xFFFFFF;
+                            }
+                        }
+                    }
+                },
+                'O' => {
+                    // Simple O pattern
+                    for y in 0..5 {
+                        for x in 0..4 {
+                            if (y == 0 || y == 4) && x > 0 && x < 3 {
+                                buffer[(10 + y) * WINDOW_WIDTH + (label_x + x)] = 0xFFFFFF;
+                            } else if (x == 0 || x == 3) && y > 0 && y < 4 {
+                                buffer[(10 + y) * WINDOW_WIDTH + (label_x + x)] = 0xFFFFFF;
+                            }
+                        }
+                    }
+                },
+                'R' => {
+                    // Simple R pattern
+                    for y in 0..5 {
+                        for x in 0..4 {
+                            if x == 0 || (y == 0 || y == 2) && x < 3 {
+                                buffer[(10 + y) * WINDOW_WIDTH + (label_x + x)] = 0xFFFFFF;
+                            } else if (y == 1 && x == 3) || (y == 3 && x == 2) || (y == 4 && x == 3) {
+                                buffer[(10 + y) * WINDOW_WIDTH + (label_x + x)] = 0xFFFFFF;
+                            }
+                        }
+                    }
+                },
+                'E' => {
+                    // Simple E pattern
+                    for y in 0..5 {
+                        for x in 0..4 {
+                            if x == 0 || y == 0 || y == 2 || y == 4 {
+                                buffer[(10 + y) * WINDOW_WIDTH + (label_x + x)] = 0xFFFFFF;
+                            }
+                        }
+                    }
+                },
+                ':' => {
+                    // Simple colon
+                    buffer[12 * WINDOW_WIDTH + (label_x + 1)] = 0xFFFFFF;
+                    buffer[14 * WINDOW_WIDTH + (label_x + 1)] = 0xFFFFFF;
+                },
+                _ => {}
+            }
+            label_x += 5;
         }
     }
 
@@ -234,6 +436,9 @@ impl Game {
                 }
             }
         }
+
+        // Draw score
+        self.draw_score(buffer);
     }
 
     fn restart(&mut self) {
@@ -247,8 +452,13 @@ impl Game {
 }
 
 fn main() {
+    let cli = Cli::parse();
+    
+    println!("Starting Rusty Snake with refresh rate: {}ms", cli.refresh_rate);
+    println!("Use arrow keys to move, R to restart, ESC to exit");
+    
     let mut window = Window::new(
-        "Rusty Snake - Use arrow keys to move, R to restart, ESC to exit",
+        &format!("Rusty Snake - Refresh Rate: {}ms", cli.refresh_rate),
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         WindowOptions::default(),
@@ -257,7 +467,7 @@ fn main() {
         panic!("Unable to create window: {}", e);
     });
 
-    let mut game = Game::new();
+    let mut game = Game::new(cli.refresh_rate);
     let mut buffer: Vec<u32> = vec![0; WINDOW_WIDTH * WINDOW_HEIGHT];
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
