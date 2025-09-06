@@ -1,10 +1,10 @@
+use chrono::Utc;
+use clap::Parser;
+use log::{debug, error, info, warn};
 use minifb::{Key, Window, WindowOptions};
 use rand::Rng;
+use std::fs::{self, DirEntry, OpenOptions};
 use std::time::{Duration, Instant};
-use std::fs::{self, OpenOptions, DirEntry};
-use clap::Parser;
-use log::{info, warn, error, debug};
-use chrono::Utc;
 
 const WINDOW_WIDTH: usize = 800;
 const WINDOW_HEIGHT: usize = 600;
@@ -45,33 +45,52 @@ struct Snake {
 impl Snake {
     fn new() -> Self {
         Snake {
-            body: vec![Position { x: GRID_WIDTH / 2, y: GRID_HEIGHT / 2 }],
+            body: vec![Position {
+                x: GRID_WIDTH / 2,
+                y: GRID_HEIGHT / 2,
+            }],
             direction: Direction::Right,
             growing: false,
         }
     }
 
     fn update(&mut self) {
-        debug!("Snake update: body length = {}, direction = {:?}, growing = {}", 
-               self.body.len(), self.direction, self.growing);
-        
+        debug!(
+            "Snake update: body length = {}, direction = {:?}, growing = {}",
+            self.body.len(),
+            self.direction,
+            self.growing
+        );
+
         // Get current head position
         let head = self.body[0];
         debug!("Current head position: ({}, {})", head.x, head.y);
-        
+
         // Calculate new head position
         let new_head = match self.direction {
-            Direction::Up => Position { x: head.x, y: head.y.saturating_sub(1) },
-            Direction::Down => Position { x: head.x, y: (head.y + 1).min(GRID_HEIGHT - 1) },
-            Direction::Left => Position { x: head.x.saturating_sub(1), y: head.y },
-            Direction::Right => Position { x: (head.x + 1).min(GRID_WIDTH - 1), y: head.y },
+            Direction::Up => Position {
+                x: head.x,
+                y: head.y.saturating_sub(1),
+            },
+            Direction::Down => Position {
+                x: head.x,
+                y: (head.y + 1).min(GRID_HEIGHT - 1),
+            },
+            Direction::Left => Position {
+                x: head.x.saturating_sub(1),
+                y: head.y,
+            },
+            Direction::Right => Position {
+                x: (head.x + 1).min(GRID_WIDTH - 1),
+                y: head.y,
+            },
         };
 
         debug!("New head position: ({}, {})", new_head.x, new_head.y);
 
         // Add new head
         self.body.insert(0, new_head);
-        
+
         // Remove tail if not growing
         if !self.growing {
             let removed = self.body.pop();
@@ -83,17 +102,23 @@ impl Snake {
     }
 
     fn change_direction(&mut self, new_direction: Direction) {
-        debug!("Direction change attempt: {:?} -> {:?}", self.direction, new_direction);
-        
+        debug!(
+            "Direction change attempt: {:?} -> {:?}",
+            self.direction, new_direction
+        );
+
         // Prevent the snake from going backwards into itself
         match (self.direction, new_direction) {
-            (Direction::Up, Direction::Down) | 
-            (Direction::Down, Direction::Up) | 
-            (Direction::Left, Direction::Right) | 
-            (Direction::Right, Direction::Left) => {
-                warn!("Invalid direction change blocked: {:?} -> {:?}", self.direction, new_direction);
+            (Direction::Up, Direction::Down)
+            | (Direction::Down, Direction::Up)
+            | (Direction::Left, Direction::Right)
+            | (Direction::Right, Direction::Left) => {
+                warn!(
+                    "Invalid direction change blocked: {:?} -> {:?}",
+                    self.direction, new_direction
+                );
                 return;
-            },
+            }
             _ => {
                 self.direction = new_direction;
                 debug!("Direction changed to: {:?}", self.direction);
@@ -109,7 +134,7 @@ impl Snake {
     fn check_collision(&self) -> bool {
         let head = self.body[0];
         debug!("Checking collision for head at: ({}, {})", head.x, head.y);
-        
+
         // Check if head hits the walls
         if head.x == 0 || head.x >= GRID_WIDTH - 1 || head.y == 0 || head.y >= GRID_HEIGHT - 1 {
             warn!("Wall collision detected at: ({}, {})", head.x, head.y);
@@ -119,7 +144,12 @@ impl Snake {
         // Check if head hits the body
         for (i, segment) in self.body[1..].iter().enumerate() {
             if head.x == segment.x && head.y == segment.y {
-                warn!("Self collision detected at: ({}, {}) with body segment {}", head.x, head.y, i + 1);
+                warn!(
+                    "Self collision detected at: ({}, {}) with body segment {}",
+                    head.x,
+                    head.y,
+                    i + 1
+                );
                 return true;
             }
         }
@@ -141,30 +171,42 @@ impl Food {
     }
 
     fn spawn(&mut self, snake: &Snake) {
-        debug!("Spawning new food, avoiding snake body of length: {}", snake.body.len());
+        debug!(
+            "Spawning new food, avoiding snake body of length: {}",
+            snake.body.len()
+        );
         let mut rng = rand::rng();
         let mut attempts = 0;
-        
+
         loop {
             let x = rng.random_range(1..GRID_WIDTH - 1);
             let y = rng.random_range(1..GRID_HEIGHT - 1);
             attempts += 1;
-            
-            debug!("Food spawn attempt {}: trying position ({}, {})", attempts, x, y);
-            
+
+            debug!(
+                "Food spawn attempt {}: trying position ({}, {})",
+                attempts, x, y
+            );
+
             // Make sure food doesn't spawn on snake
             let mut valid = true;
             for (i, segment) in snake.body.iter().enumerate() {
                 if segment.x == x && segment.y == y {
-                    debug!("Food spawn blocked by snake segment {} at ({}, {})", i, x, y);
+                    debug!(
+                        "Food spawn blocked by snake segment {} at ({}, {})",
+                        i, x, y
+                    );
                     valid = false;
                     break;
                 }
             }
-            
+
             if valid {
                 self.position = Position { x, y };
-                info!("Food spawned at: ({}, {}) after {} attempts", x, y, attempts);
+                info!(
+                    "Food spawned at: ({}, {}) after {} attempts",
+                    x, y, attempts
+                );
                 break;
             }
         }
@@ -182,8 +224,11 @@ struct Game {
 
 impl Game {
     fn new(refresh_rate: u64) -> Self {
-        info!("Initializing new game with refresh rate: {}ms", refresh_rate);
-        
+        info!(
+            "Initializing new game with refresh rate: {}ms",
+            refresh_rate
+        );
+
         let mut game = Game {
             snake: Snake::new(),
             food: Food::new(),
@@ -192,7 +237,7 @@ impl Game {
             last_update: Instant::now(),
             refresh_rate: Duration::from_millis(refresh_rate),
         };
-        
+
         game.food.spawn(&game.snake);
         game
     }
@@ -209,8 +254,13 @@ impl Game {
             // Check if snake ate food
             let head = self.snake.body[0];
             if head.x == self.food.position.x && head.y == self.food.position.y {
-                info!("Food eaten at: ({}, {}), score: {} -> {}", 
-                      head.x, head.y, self.score, self.score + 10);
+                info!(
+                    "Food eaten at: ({}, {}), score: {} -> {}",
+                    head.x,
+                    head.y,
+                    self.score,
+                    self.score + 10
+                );
                 self.snake.grow();
                 self.score += 10;
                 self.food.spawn(&self.snake);
@@ -284,8 +334,11 @@ impl Game {
         // Draw border (white)
         for y in 0..WINDOW_HEIGHT {
             for x in 0..WINDOW_WIDTH {
-                if x < GRID_SIZE || x >= WINDOW_WIDTH - GRID_SIZE || 
-                   y < GRID_SIZE || y >= WINDOW_HEIGHT - GRID_SIZE {
+                if x < GRID_SIZE
+                    || x >= WINDOW_WIDTH - GRID_SIZE
+                    || y < GRID_SIZE
+                    || y >= WINDOW_HEIGHT - GRID_SIZE
+                {
                     buffer[y * WINDOW_WIDTH + x] = 0xFFFFFF; // White
                 }
             }
@@ -309,7 +362,7 @@ fn setup_logging() -> String {
     } else {
         "/var/rusty-snake-logs"
     };
-    
+
     // Create log directory if it doesn't exist
     if let Err(e) = fs::create_dir_all(log_dir) {
         eprintln!("Warning: Could not create log directory {}: {}", log_dir, e);
@@ -320,7 +373,10 @@ fn setup_logging() -> String {
             "/tmp/rusty-snake-logs"
         };
         if let Err(e) = fs::create_dir_all(fallback_dir) {
-            eprintln!("Warning: Could not create fallback log directory {}: {}", fallback_dir, e);
+            eprintln!(
+                "Warning: Could not create fallback log directory {}: {}",
+                fallback_dir, e
+            );
             return if cfg!(target_os = "windows") {
                 "C:\\temp\\rusty-snake.log".to_string()
             } else {
@@ -329,47 +385,70 @@ fn setup_logging() -> String {
         }
         // Clean up old logs in fallback directory
         cleanup_old_logs(fallback_dir);
-        return format!("{}/rusty-snake-{}.log", fallback_dir, Utc::now().format("%Y%m%d-%H%M%S"));
+        return format!(
+            "{}/rusty-snake-{}.log",
+            fallback_dir,
+            Utc::now().format("%Y%m%d-%H%M%S")
+        );
     }
-    
+
     // Clean up old logs (keep only last 5)
     cleanup_old_logs(log_dir);
-    
+
     // Generate unique log filename with timestamp
-    let log_path = format!("{}/rusty-snake-{}.log", log_dir, Utc::now().format("%Y%m%d-%H%M%S"));
+    let log_path = format!(
+        "{}/rusty-snake-{}.log",
+        log_dir,
+        Utc::now().format("%Y%m%d-%H%M%S")
+    );
     log_path
 }
 
 fn cleanup_old_logs(log_dir: &str) {
     println!("Cleaning up old logs in: {}", log_dir);
-    
+
     if let Ok(entries) = fs::read_dir(log_dir) {
         let mut log_files: Vec<DirEntry> = entries
             .filter_map(|entry| entry.ok())
             .filter(|entry| {
-                entry.path().extension().map_or(false, |ext| ext == "log") &&
-                entry.file_name().to_string_lossy().starts_with("rusty-snake-")
+                entry.path().extension().map_or(false, |ext| ext == "log")
+                    && entry
+                        .file_name()
+                        .to_string_lossy()
+                        .starts_with("rusty-snake-")
             })
             .collect();
-        
+
         println!("Found {} log files", log_files.len());
-        
+
         // Sort by modification time (newest first)
         log_files.sort_by(|a, b| {
-            let a_time = a.metadata().ok().and_then(|m| m.modified().ok()).unwrap_or(std::time::UNIX_EPOCH);
-            let b_time = b.metadata().ok().and_then(|m| m.modified().ok()).unwrap_or(std::time::UNIX_EPOCH);
+            let a_time = a
+                .metadata()
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .unwrap_or(std::time::UNIX_EPOCH);
+            let b_time = b
+                .metadata()
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .unwrap_or(std::time::UNIX_EPOCH);
             b_time.cmp(&a_time)
         });
-        
+
         // Remove files beyond the 5 most recent
         let files_to_remove = log_files.len().saturating_sub(5);
         println!("Need to remove {} old log files", files_to_remove);
-        
+
         for (i, file) in log_files.iter().enumerate() {
             if i >= 5 {
                 println!("Removing old log file: {:?}", file.path());
                 if let Err(e) = fs::remove_file(file.path()) {
-                    eprintln!("Warning: Could not remove old log file {:?}: {}", file.path(), e);
+                    eprintln!(
+                        "Warning: Could not remove old log file {:?}: {}",
+                        file.path(),
+                        e
+                    );
                 } else {
                     println!("Successfully removed: {:?}", file.path());
                 }
@@ -382,26 +461,32 @@ fn cleanup_old_logs(log_dir: &str) {
 
 fn main() {
     let cli = Cli::parse();
-    
+
     // Setup logging with unique filename and cleanup
     let log_path = setup_logging();
-    
+
     env_logger::Builder::from_default_env()
         .target(env_logger::Target::Pipe(Box::new(
             OpenOptions::new()
                 .create(true)
                 .append(true)
                 .open(&log_path)
-                .expect("Failed to open log file")
+                .expect("Failed to open log file"),
         )))
         .filter_level(log::LevelFilter::Debug)
         .init();
-    
-    info!("Starting Rusty Snake with refresh rate: {}ms", cli.refresh_rate);
-    println!("Starting Rusty Snake with refresh rate: {}ms", cli.refresh_rate);
+
+    info!(
+        "Starting Rusty Snake with refresh rate: {}ms",
+        cli.refresh_rate
+    );
+    println!(
+        "Starting Rusty Snake with refresh rate: {}ms",
+        cli.refresh_rate
+    );
     println!("Logging to: {}", log_path);
     println!("Use arrow keys to move, R to restart, ESC to exit");
-    
+
     let mut window = Window::new(
         &format!("Rusty Snake - Refresh Rate: {}ms", cli.refresh_rate),
         WINDOW_WIDTH,
@@ -422,12 +507,13 @@ fn main() {
         game.update();
         game.render(&mut buffer);
 
-        window.update_with_buffer(&buffer, WINDOW_WIDTH, WINDOW_HEIGHT)
+        window
+            .update_with_buffer(&buffer, WINDOW_WIDTH, WINDOW_HEIGHT)
             .unwrap_or_else(|e| {
                 error!("Window update failed: {}", e);
             });
     }
-    
+
     info!("Game loop ended");
     println!("\n🎮 Game session ended!");
     println!("📁 Game logs saved to: {}", log_path);
