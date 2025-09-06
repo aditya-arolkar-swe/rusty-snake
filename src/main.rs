@@ -38,7 +38,7 @@ struct Snake {
     direction: Direction,
     growing: bool,
 }
-testtest
+
 impl Snake {
     fn new() -> Self {
         Snake {
