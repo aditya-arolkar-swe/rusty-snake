@@ -1,4 +1,5 @@
 use minifb::{Key, Window, WindowOptions};
+use rand::seq::IndexedRandom;
 use rand::Rng;
 use std::time::{Duration, Instant};
 
@@ -31,7 +32,10 @@ struct Snake {
 impl Snake {
     fn new() -> Self {
         Snake {
-            body: vec![Position { x: GRID_WIDTH / 2, y: GRID_HEIGHT / 2 }],
+            body: vec![Position {
+                x: GRID_WIDTH / 2,
+                y: GRID_HEIGHT / 2,
+            }],
             direction: Direction::Right,
             growing: false,
         }
@@ -40,18 +44,30 @@ impl Snake {
     fn update(&mut self) {
         // Get current head position
         let head = self.body[0];
-        
+
         // Calculate new head position
         let new_head = match self.direction {
-            Direction::Up => Position { x: head.x, y: head.y.saturating_sub(1) },
-            Direction::Down => Position { x: head.x, y: (head.y + 1).min(GRID_HEIGHT - 1) },
-            Direction::Left => Position { x: head.x.saturating_sub(1), y: head.y },
-            Direction::Right => Position { x: (head.x + 1).min(GRID_WIDTH - 1), y: head.y },
+            Direction::Up => Position {
+                x: head.x,
+                y: head.y.saturating_sub(1),
+            },
+            Direction::Down => Position {
+                x: head.x,
+                y: (head.y + 1).min(GRID_HEIGHT - 1),
+            },
+            Direction::Left => Position {
+                x: head.x.saturating_sub(1),
+                y: head.y,
+            },
+            Direction::Right => Position {
+                x: (head.x + 1).min(GRID_WIDTH - 1),
+                y: head.y,
+            },
         };
 
         // Add new head
         self.body.insert(0, new_head);
-        
+
         // Remove tail if not growing
         if !self.growing {
             self.body.pop();
@@ -63,10 +79,10 @@ impl Snake {
     fn change_direction(&mut self, new_direction: Direction) {
         // Prevent the snake from going backwards into itself
         match (self.direction, new_direction) {
-            (Direction::Up, Direction::Down) | 
-            (Direction::Down, Direction::Up) | 
-            (Direction::Left, Direction::Right) | 
-            (Direction::Right, Direction::Left) => return,
+            (Direction::Up, Direction::Down)
+            | (Direction::Down, Direction::Up)
+            | (Direction::Left, Direction::Right)
+            | (Direction::Right, Direction::Left) => return,
             _ => self.direction = new_direction,
         }
     }
@@ -77,7 +93,7 @@ impl Snake {
 
     fn check_collision(&self) -> bool {
         let head = self.body[0];
-        
+
         // Check if head hits the walls
         if head.x == 0 || head.x >= GRID_WIDTH - 1 || head.y == 0 || head.y >= GRID_HEIGHT - 1 {
             return true;
@@ -106,11 +122,11 @@ impl Food {
     }
 
     fn spawn(&mut self, snake: &Snake) {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         loop {
-            let x = rng.gen_range(1..GRID_WIDTH - 1);
-            let y = rng.gen_range(1..GRID_HEIGHT - 1);
-            
+            let x = rng.random_range(1..GRID_WIDTH - 1);
+            let y = rng.random_range(1..GRID_HEIGHT - 1);
+
             // Make sure food doesn't spawn on snake
             let mut valid = true;
             for segment in &snake.body {
@@ -119,11 +135,35 @@ impl Food {
                     break;
                 }
             }
-            
+
             if valid {
                 self.position = Position { x, y };
                 break;
             }
+        }
+    }
+
+    fn spawn_constant(&mut self, snake: &Snake) {
+        let mut allowed_spawns: Vec<Position> = Vec::with_capacity(GRID_WIDTH * GRID_HEIGHT);
+        for x in 1..GRID_WIDTH - 1 {
+            for y in 1..GRID_HEIGHT - 1 {
+                let mut valid = true;
+                for segment in &snake.body {
+                    if segment.x != x && segment.y == y {
+                        valid = false;
+                        break;
+                    }
+                }
+
+                if valid {
+                    allowed_spawns.push(Position { x: x, y: y });
+                }
+            }
+        }
+
+        match allowed_spawns.choose(&mut rand::rng()) {
+            Some(i) => self.position = *i,
+            None => println!("Game Won!"),
         }
     }
 }
@@ -163,7 +203,11 @@ impl Game {
             if head.x == self.food.position.x && head.y == self.food.position.y {
                 self.snake.grow();
                 self.score += 10;
-                self.food.spawn(&self.snake);
+                if self.snake.body.len() > GRID_WIDTH * GRID_HEIGHT / 2 {
+                    self.food.spawn_constant(&self.snake);
+                } else {
+                    self.food.spawn(&self.snake);
+                }
             }
 
             // Check for collisions
@@ -228,8 +272,11 @@ impl Game {
         // Draw border (white)
         for y in 0..WINDOW_HEIGHT {
             for x in 0..WINDOW_WIDTH {
-                if x < GRID_SIZE || x >= WINDOW_WIDTH - GRID_SIZE || 
-                   y < GRID_SIZE || y >= WINDOW_HEIGHT - GRID_SIZE {
+                if x < GRID_SIZE
+                    || x >= WINDOW_WIDTH - GRID_SIZE
+                    || y < GRID_SIZE
+                    || y >= WINDOW_HEIGHT - GRID_SIZE
+                {
                     buffer[y * WINDOW_WIDTH + x] = 0xFFFFFF; // White
                 }
             }
@@ -265,7 +312,8 @@ fn main() {
         game.update();
         game.render(&mut buffer);
 
-        window.update_with_buffer(&buffer, WINDOW_WIDTH, WINDOW_HEIGHT)
+        window
+            .update_with_buffer(&buffer, WINDOW_WIDTH, WINDOW_HEIGHT)
             .unwrap();
     }
 }
