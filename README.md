@@ -1,5 +1,8 @@
-# Rusty Snake
+<p align="center">
+  <img width="400" height="400" alt="Untitled design (1)" src="https://github.com/user-attachments/assets/86fa48e0-57a9-4c3c-a663-cde32df2f3fa" />
+</p>
 
+# Rusty Snake
 A classic Snake game implementation in Rust using the `minifb` library for graphics and window management.
 
 ## Features
