@@ -1,7 +1,6 @@
 use clap::Parser;
 use minifb::{Key, Window, WindowOptions};
 use rand::seq::IndexedRandom;
-use rand::Rng;
 use std::time::{Duration, Instant};
 
 const WINDOW_WIDTH: usize = 1280;
@@ -132,45 +131,34 @@ impl Food {
         }
     }
 
-    fn spawn_early_game(&mut self, snake: &Snake) {
-        let mut rng = rand::rng();
-        loop {
-            let x = rng.random_range(1..GRID_WIDTH - 1);
-            let y = rng.random_range(1..GRID_HEIGHT - 1);
-
-            // Make sure food doesn't spawn on snake
-            let mut valid = true;
-            for segment in &snake.body {
-                if segment.x == x && segment.y == y {
-                    valid = false;
-                    break;
-                }
-            }
-
-            if valid {
-                self.position = Position { x, y };
-                break;
-            }
-        }
-    }
-
-    fn spawn_late_game(&mut self, snake: &Snake) {
+    fn spawn(&mut self, snake: &Snake) {
         let mut allowed_spawns: Vec<Position> = Vec::with_capacity(GRID_WIDTH * GRID_HEIGHT);
         for x in 1..GRID_WIDTH - 1 {
             for y in 1..GRID_HEIGHT - 1 {
-                let mut valid = true;
-                for segment in &snake.body {
-                    if segment.x != x && segment.y == y {
-                        valid = false;
-                        break;
-                    }
-                }
-
-                if valid {
-                    allowed_spawns.push(Position { x: x, y: y });
-                }
+                allowed_spawns.push(Position { x: x, y: y });
             }
         }
+
+        let mut indices_to_remove: Vec<usize> =
+            snake.body.iter().map(|p| p.x * GRID_WIDTH + p.y).collect();
+
+        indices_to_remove.sort();
+
+        let mut current_index_in_original_vec = 0;
+        let mut next_removal_index_to_check = 0;
+        allowed_spawns.retain(|_| {
+            let should_keep = if next_removal_index_to_check < indices_to_remove.len()
+                && indices_to_remove[next_removal_index_to_check] == current_index_in_original_vec
+            {
+                // This element's index matches an index to be removed
+                next_removal_index_to_check += 1;
+                false // Do not keep this element
+            } else {
+                true // Keep this element
+            };
+            current_index_in_original_vec += 1;
+            should_keep
+        });
 
         match allowed_spawns.choose(&mut rand::rng()) {
             Some(i) => self.position = *i,
@@ -198,7 +186,7 @@ impl Game {
             last_update: Instant::now(),
             refresh_rate: Duration::from_millis(refresh_rate),
         };
-        game.food.spawn_early_game(&game.snake);
+        game.food.spawn(&game.snake);
         game
     }
 
@@ -216,11 +204,7 @@ impl Game {
             if head.x == self.food.position.x && head.y == self.food.position.y {
                 self.snake.grow();
                 self.score += 10;
-                if self.snake.body.len() > GRID_WIDTH * GRID_HEIGHT / 2 {
-                    self.food.spawn_late_game(&self.snake);
-                } else {
-                    self.food.spawn_early_game(&self.snake);
-                }
+                self.food.spawn(&self.snake);
             }
 
             // Check for collisions
@@ -299,7 +283,7 @@ impl Game {
     fn restart(&mut self) {
         self.snake = Snake::new();
         self.food = Food::new();
-        self.food.spawn_early_game(&self.snake);
+        self.food.spawn(&self.snake);
         self.score = 0;
         self.game_over = false;
         self.last_update = Instant::now();
