@@ -2,6 +2,7 @@ use chrono::Utc;
 use clap::Parser;
 use log::{debug, error, info, warn};
 use minifb::{Key, Window, WindowOptions};
+use rand::seq::IndexedRandom;
 use rand::Rng;
 use std::fs::{self, DirEntry, OpenOptions};
 use std::time::{Duration, Instant};
